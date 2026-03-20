@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import os
+import re
 import signal
-import sys
 import time
 from typing import Optional
 
@@ -10,7 +9,12 @@ from commands import CommandProcessor
 from speech import SpeechListener
 from tts import VietnameseTTS
 
-WAKE_WORDS = ("long ơi", "hey long", "long oi")
+WAKE_WORD_PATTERNS = (
+    r"\blong\s*ơi\b",
+    r"\blong\s*oi\b",
+    r"\bhey\s+long\b",
+    r"^\s*long\b",
+)
 LISTEN_TIMEOUT_SECONDS = 8
 IDLE_SLEEP_SECONDS = 0.15
 
@@ -21,21 +25,21 @@ def normalize_text(text: str) -> str:
 
 def contains_wake_word(text: str) -> bool:
     normalized = normalize_text(text)
-    return any(keyword in normalized for keyword in WAKE_WORDS)
+    return any(re.search(pattern, normalized) for pattern in WAKE_WORD_PATTERNS)
 
 
 def strip_wake_word(text: str) -> str:
     normalized = normalize_text(text)
-    for keyword in WAKE_WORDS:
-        if keyword in normalized:
-            cleaned = normalized.replace(keyword, "", 1).strip(" ,.!?-")
-            return cleaned
+    for pattern in WAKE_WORD_PATTERNS:
+        matched = re.search(pattern, normalized)
+        if matched:
+            return normalized[matched.end() :].strip(" ,.!?-")
     return normalized
 
 
 def main() -> int:
     print("[SYSTEM] Khởi động trợ lý giọng nói cho sếp...")
-    print("[SYSTEM] Wake word: Long ơi / Hey Long")
+    print("[SYSTEM] Wake word hỗ trợ: Long ơi / long oi / Hey Long / Long")
     print("[SYSTEM] Nhấn Ctrl+C để thoát.\n")
 
     tts = VietnameseTTS(rate=175, volume=1.0)
@@ -57,12 +61,13 @@ def main() -> int:
         try:
             heard_text = speech.listen_for_text(timeout=LISTEN_TIMEOUT_SECONDS)
             if not heard_text:
+                speech.print_debug_snapshot(prefix="[MIC][IDLE]")
                 time.sleep(IDLE_SLEEP_SECONDS)
                 continue
 
             print(f"[HEARD] {heard_text}")
             if not contains_wake_word(heard_text):
-                print("[DEBUG] Không có wake word, bỏ qua để tiết kiệm tài nguyên.")
+                print("[DEBUG] Có âm thanh nhưng chưa thấy wake word, tiếp tục chờ.")
                 time.sleep(IDLE_SLEEP_SECONDS)
                 continue
 

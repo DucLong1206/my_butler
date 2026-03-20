@@ -1,24 +1,28 @@
 # My Butler - Trợ lý giọng nói Windows
 
-Một trợ lý ảo Python chạy nền kiểu "Jarvis mini" dành cho Windows. Ứng dụng luôn lắng nghe, chỉ phản hồi khi nghe thấy wake word **"Long ơi"** hoặc **"Hey Long"**, sau đó xử lý các lệnh cơ bản bằng tiếng Việt.
+Một trợ lý ảo Python chạy nền kiểu "Jarvis mini" dành cho Windows. Ứng dụng luôn lắng nghe, chỉ phản hồi khi nghe thấy wake word **"Long ơi"**, **"long oi"**, **"Hey Long"** hoặc **"Long"** ở đầu câu, sau đó xử lý các lệnh cơ bản bằng tiếng Việt.
 
 ## Tính năng chính
 
 - Luôn chạy nền, vòng lặp ổn định và nhẹ CPU.
 - Ưu tiên nhận diện giọng nói **offline bằng Vosk**.
 - Tự động fallback sang **SpeechRecognition + Google** nếu chưa có Vosk model.
+- **Không phụ thuộc PyAudio** cho đường fallback online: microphone vẫn thu bằng `sounddevice` rồi mới đưa sang Google SpeechRecognition.
+- In log debug rõ hơn để biết micro có đang thu âm hay không:
+  - Mức âm lượng RMS hiện tại.
+  - Partial text khi Vosk đang nghe.
+  - Tổng số byte / thời lượng âm thanh đã thu ở đường fallback.
 - Phản hồi giọng nói bằng **pyttsx3** theo phong cách thân thiện, gọi người dùng là **sếp**.
 - Xử lý các lệnh:
   - Bật nhạc trên YouTube.
   - Xem thời tiết Hà Nội qua OpenWeatherMap.
   - Xem giờ hệ thống.
   - Mở Messenger Web / WhatsApp Web và kiểm tra unread ở mức cơ bản.
-- In log chi tiết ra console để debug.
 
 ## Cấu trúc file
 
 - `main.py`: Vòng lặp chính, wake word, điều phối.
-- `speech.py`: Nhận diện giọng nói, ưu tiên Vosk.
+- `speech.py`: Nhận diện giọng nói, ưu tiên Vosk, fallback online không cần PyAudio.
 - `tts.py`: Text-to-speech bằng pyttsx3.
 - `commands.py`: Xử lý các câu lệnh if/else.
 - `requirements.txt`: Danh sách thư viện cần cài.
@@ -38,13 +42,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Nếu `speech_recognition` cần thêm driver microphone trên Windows, có thể cài thêm:
-
-```bash
-pip install pyaudio
-```
-
-> Lưu ý: `pyaudio` đôi khi khó cài trên Windows. Nếu vậy bạn vẫn có thể dùng đường nhận diện **Vosk + sounddevice**.
+> Bản hiện tại **không yêu cầu PyAudio** để fallback online nữa. Nếu trước đó bạn thấy lỗi `Could not find PyAudio`, hãy pull bản code mới này rồi chạy lại.
 
 ## Chuẩn bị Vosk tiếng Việt (khuyên dùng)
 
@@ -93,46 +91,63 @@ Mặc định dùng Messenger. Nếu muốn WhatsApp Web:
 set MESSAGE_TARGET=whatsapp
 ```
 
+### 4) Tuỳ chỉnh debug audio
+
+Mặc định đang bật debug để bạn dễ kiểm tra micro có thu được âm thanh không:
+
+```bash
+set DEBUG_AUDIO=1
+```
+
+Nếu muốn bớt log:
+
+```bash
+set DEBUG_AUDIO=0
+```
+
+Có thể chỉnh ngưỡng phát hiện giọng nói nếu micro quá nhỏ hoặc quá nhạy:
+
+```bash
+set SR_ENERGY_THRESHOLD=300
+set SR_SILENCE_TIMEOUT=1.2
+set SR_MAX_PHRASE_SECONDS=6
+```
+
 ## Cách chạy chương trình
 
 ```bash
 python main.py
 ```
 
-Sau khi chạy, trợ lý sẽ luôn lắng nghe trong nền. Chỉ khi nghe thấy:
+Khi chạy, bạn có thể quan sát log như sau:
 
-- `Long ơi`
-- `Hey Long`
-
-thì mới bắt đầu xử lý tiếp nội dung phía sau.
+- `[MIC] RMS=...` → micro đang thu được mức âm lượng bao nhiêu.
+- `[SPEECH][PARTIAL] ...` → Vosk đang nghe được từng phần gì.
+- `[HEARD] ...` → câu đã nhận diện xong.
+- `[MIC][IDLE] backend=... rms=... partial='...'` → snapshot nhanh khi chưa có câu lệnh hoàn chỉnh.
 
 ## Ví dụ lệnh hỗ trợ
 
 - `Long ơi bật nhạc Sơn Tùng`
+- `long oi mở nhạc lofi`
 - `Hey Long hôm nay bao nhiêu độ`
-- `Long ơi mấy giờ rồi`
-- `Long ơi có tin nhắn không`
+- `Long mấy giờ rồi`
+- `Long có tin nhắn không`
 
-## Cách hoạt động
+## Cách xử lý lỗi wake word không ăn
 
-### 1) Bật nhạc
+Nếu bạn nói mà trợ lý không phản hồi:
 
-- Trợ lý phân tích phần từ khoá sau cụm `bật nhạc`.
-- Mở YouTube search bằng trình duyệt.
-- Nếu có cấu hình `CHROMEDRIVER_PATH`, trợ lý sẽ cố click vào video đầu tiên.
-- Nếu không có Selenium, trợ lý vẫn mở sẵn trang kết quả để bạn chọn nhanh.
-
-### 2) Xem thời tiết
-
-- Gọi API OpenWeatherMap.
-- Đọc nhiệt độ hiện tại ở Hà Nội.
-- Nếu thiếu API key, trợ lý sẽ báo rõ để bạn bổ sung.
-
-### 3) Kiểm tra tin nhắn
-
-- Mở Messenger Web hoặc WhatsApp Web.
-- Nếu có Selenium + phiên đăng nhập sẵn, trợ lý sẽ thử đọc title tab để suy ra số chưa đọc.
-- Đây là mức kiểm tra **cơ bản**, phù hợp yêu cầu demo / mini assistant.
+1. Nhìn log `RMS`:
+   - Nếu luôn gần `0` → Windows chưa lấy đúng microphone.
+   - Nếu có tăng mạnh nhưng không ra text → speech engine chưa hiểu rõ giọng nói.
+2. Thử nói chậm và rõ hơn:
+   - `Long ơi`
+   - `long oi`
+   - `Hey Long`
+   - `Long mở nhạc lofi`
+3. Nếu đang fallback online, kiểm tra Internet.
+4. Nếu muốn ổn định hơn, nên dùng Vosk model tiếng Việt offline.
 
 ## Mẹo để chạy mượt và nhẹ CPU
 
@@ -146,10 +161,4 @@ thì mới bắt đầu xử lý tiếp nội dung phía sau.
 - pyttsx3 sẽ dùng voice của Windows; nên cài voice tiếng Việt nếu muốn đọc tự nhiên hơn.
 - Selenium chỉ tự click / tự đọc title tốt khi Chrome và chromedriver tương thích version.
 - Messenger / WhatsApp Web thường yêu cầu đăng nhập trước trên profile trình duyệt của bạn.
-
-## Hướng mở rộng tiếp theo
-
-- Thêm lệnh mở ứng dụng desktop (Notepad, Word, VS Code).
-- Thêm lịch nhắc việc / báo thức.
-- Dùng intent matching thông minh hơn thay vì if/else.
-- Thêm hotword detector chuyên dụng để wake word ổn định hơn.
+- Nếu bạn muốn kiểm tra micro đang nhận âm trực tiếp, chỉ cần xem log `RMS` là đủ để debug nhanh.
