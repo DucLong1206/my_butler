@@ -22,34 +22,50 @@
         height: 100%;
       }
 
-      .player-header {
+      .player-header,
+      .player-error {
         padding: 12px 16px;
         background: rgba(15, 23, 42, 0.95);
         font-size: 14px;
       }
 
+      .player-error {
+        color: #fca5a5;
+      }
+
       #player {
         flex: 1;
+        width: 100%;
+        height: 100%;
+        border: 0;
       }
     </style>
   </head>
   <body>
     <div class="player-shell">
       <div class="player-header" id="playerTitle">Đang tải video...</div>
-      <div id="player"></div>
+      <div class="player-error" id="playerError" hidden></div>
+      <iframe
+        id="player"
+        type="text/html"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
     </div>
 
     <script>
       const params = new URLSearchParams(window.location.search);
       const videoId = params.get("videoId");
       const title = params.get("title") || "YouTube Player";
+      const origin = params.get("origin") || window.location.origin;
       const playerTitle = document.getElementById("playerTitle");
+      const playerError = document.getElementById("playerError");
+      const iframe = document.getElementById("player");
       playerTitle.textContent = title;
       document.title = title;
 
       let player;
-      let desiredWidth = window.innerWidth;
-      let desiredHeight = window.innerHeight;
 
       function postStatus(message) {
         if (window.opener && !window.opener.closed) {
@@ -57,25 +73,31 @@
         }
       }
 
-      function applySize(width, height) {
-        desiredWidth = Math.max(width, 640);
-        desiredHeight = Math.max(height, 480);
-        window.resizeTo(desiredWidth, desiredHeight);
+      function showError(message) {
+        playerError.hidden = false;
+        playerError.textContent = message;
+        postStatus(message);
       }
+
+      function applySize(width, height) {
+        window.resizeTo(Math.max(width, 640), Math.max(height, 480));
+      }
+
+      iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=1&playsinline=1&rel=0&origin=${encodeURIComponent(origin)}`;
 
       function onYouTubeIframeAPIReady() {
         player = new YT.Player("player", {
-          width: "100%",
-          height: "100%",
-          videoId,
-          playerVars: {
-            autoplay: 1,
-            rel: 0,
-            playsinline: 1,
-          },
           events: {
             onReady: () => {
               postStatus(`Player đã sẵn sàng cho video ${title}.`);
+            },
+            onError: (event) => {
+              if (event.data === 153) {
+                showError("YouTube báo lỗi 153: thiếu HTTP Referer hoặc origin hợp lệ. Hãy mở app qua http://localhost thay vì file://.");
+                return;
+              }
+
+              showError(`Player gặp lỗi YouTube: ${event.data}.`);
             },
           },
         });
@@ -116,7 +138,6 @@
 
         if (action === "fullscreen") {
           applySize(screen.availWidth, screen.availHeight);
-          const iframe = player.getIframe();
           if (document.fullscreenElement) {
             await document.exitFullscreen();
           }

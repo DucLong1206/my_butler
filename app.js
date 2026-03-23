@@ -1,6 +1,8 @@
 const API_KEY = "AIzaSyD9ZmMWeV1HolZk1zXq3c6J7lPvaEAgxIk";
 const SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search";
 const PLAYER_PAGE = "player.html";
+const IS_FILE_PROTOCOL = window.location.protocol === "file:";
+const LOCAL_SERVER_COMMAND = "python3 -m http.server 8000";
 
 const queryInput = document.getElementById("queryInput");
 const searchButton = document.getElementById("searchButton");
@@ -17,7 +19,6 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
 let playerWindow = null;
-let currentVideo = null;
 
 if (recognition) {
   recognition.lang = "vi-VN";
@@ -39,6 +40,12 @@ if (recognition) {
     updateStatus(message);
     speak(`Mình không nghe rõ lệnh. ${event.error}`);
   };
+}
+
+if (IS_FILE_PROTOCOL) {
+  const message = `Bạn đang mở bằng file:// nên YouTube embed có thể báo lỗi 153. Hãy chạy ${LOCAL_SERVER_COMMAND} rồi mở http://localhost:8000 để dùng player điều khiển trực tiếp.`;
+  updateStatus(message);
+  playerStateEl.textContent = "Chế độ file:// không hỗ trợ player điều khiển ổn định.";
 }
 
 searchButton.addEventListener("click", () => {
@@ -152,6 +159,13 @@ async function handleCommand(rawCommand) {
 }
 
 function ensurePlayerWindow() {
+  if (IS_FILE_PROTOCOL) {
+    const message = `Bạn đang chạy app bằng file:// nên không thể điều khiển player ổn định. Hãy chạy ${LOCAL_SERVER_COMMAND} rồi mở http://localhost:8000.`;
+    updateStatus(message);
+    speak(message);
+    return false;
+  }
+
   if (!playerWindow || playerWindow.closed) {
     const message = "Bạn chưa mở video nào. Hãy tìm video trước rồi mới điều khiển được.";
     updateStatus(message);
@@ -188,6 +202,7 @@ function openPlayerWindow(videoId, title) {
   const playerUrl = new URL(PLAYER_PAGE, window.location.href);
   playerUrl.searchParams.set("videoId", videoId);
   playerUrl.searchParams.set("title", title);
+  playerUrl.searchParams.set("origin", window.location.origin);
 
   const features = "popup=yes,width=1280,height=840,left=120,top=80";
   if (!playerWindow || playerWindow.closed) {
@@ -196,6 +211,14 @@ function openPlayerWindow(videoId, title) {
     playerWindow.location.href = playerUrl.toString();
     playerWindow.focus();
   }
+}
+
+function showFileProtocolFallback(videoUrl, title, channel) {
+  const message = `Video ${title} từ kênh ${channel} sẽ được mở trực tiếp trên YouTube để tránh lỗi 153. Muốn điều khiển bằng giọng nói hoặc nút bấm, hãy chạy ${LOCAL_SERVER_COMMAND} rồi mở http://localhost:8000.`;
+  playerStateEl.textContent = "Đã mở fallback YouTube trực tiếp vì app đang chạy bằng file://.";
+  updateStatus(message);
+  speak(message);
+  window.open(videoUrl, "_blank", "noopener,noreferrer");
 }
 
 async function openFirstVideo(query) {
@@ -242,14 +265,18 @@ async function openFirstVideo(query) {
     const title = firstItem.snippet?.title || "Không có tiêu đề";
     const channel = firstItem.snippet?.channelTitle || "Không rõ kênh";
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    currentVideo = { videoId, title, channel };
 
     videoTitleEl.textContent = title;
     videoChannelEl.textContent = channel;
     videoLinkEl.href = videoUrl;
-    playerStateEl.textContent = "Đang mở player điều khiển riêng...";
     resultEl.hidden = false;
 
+    if (IS_FILE_PROTOCOL) {
+      showFileProtocolFallback(videoUrl, title, channel);
+      return;
+    }
+
+    playerStateEl.textContent = "Đang mở player điều khiển riêng...";
     openPlayerWindow(videoId, title);
 
     const spokenMessage = `Đã tìm thấy video ${title} từ kênh ${channel}. Mình đang mở player để bạn điều khiển bằng giọng nói hoặc nút bấm.`;
