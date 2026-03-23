@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YouTube Player</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #020617;
+        color: #e2e8f0;
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      .player-shell {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+      }
+
+      .player-header {
+        padding: 12px 16px;
+        background: rgba(15, 23, 42, 0.95);
+        font-size: 14px;
+      }
+
+      #player {
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="player-shell">
+      <div class="player-header" id="playerTitle">Đang tải video...</div>
+      <div id="player"></div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get("videoId");
+      const title = params.get("title") || "YouTube Player";
+      const playerTitle = document.getElementById("playerTitle");
+      playerTitle.textContent = title;
+      document.title = title;
+
+      let player;
+      let desiredWidth = window.innerWidth;
+      let desiredHeight = window.innerHeight;
+
+      function postStatus(message) {
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({ type: "PLAYER_STATUS", message }, window.location.origin);
+        }
+      }
+
+      function applySize(width, height) {
+        desiredWidth = Math.max(width, 640);
+        desiredHeight = Math.max(height, 480);
+        window.resizeTo(desiredWidth, desiredHeight);
+      }
+
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player("player", {
+          width: "100%",
+          height: "100%",
+          videoId,
+          playerVars: {
+            autoplay: 1,
+            rel: 0,
+            playsinline: 1,
+          },
+          events: {
+            onReady: () => {
+              postStatus(`Player đã sẵn sàng cho video ${title}.`);
+            },
+          },
+        });
+      }
+
+      window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+      window.addEventListener("message", async (event) => {
+        if (event.origin !== window.location.origin || event.data?.type !== "PLAYER_COMMAND" || !player) {
+          return;
+        }
+
+        const { action } = event.data;
+
+        if (action === "play") {
+          player.playVideo();
+          postStatus("Video đang phát.");
+          return;
+        }
+
+        if (action === "pause") {
+          player.pauseVideo();
+          postStatus("Video đã tạm dừng.");
+          return;
+        }
+
+        if (action === "speed-1") {
+          player.setPlaybackRate(1);
+          postStatus("Tốc độ video đã chuyển về 1x.");
+          return;
+        }
+
+        if (action === "speed-2") {
+          player.setPlaybackRate(2);
+          postStatus("Tốc độ video đã chuyển sang 2x.");
+          return;
+        }
+
+        if (action === "fullscreen") {
+          applySize(screen.availWidth, screen.availHeight);
+          const iframe = player.getIframe();
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          }
+          await iframe.requestFullscreen?.();
+          postStatus("Video đã được phóng to.");
+          return;
+        }
+
+        if (action === "shrink") {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          }
+          applySize(960, 640);
+          postStatus("Player đã được thu nhỏ lại.");
+        }
+      });
+
+      const script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
