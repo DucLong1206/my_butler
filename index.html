@@ -12,10 +12,11 @@
         <h1>My Butler Voice YouTube</h1>
         <p class="intro">
           Nhập lệnh hoặc bấm nút mic để nói. Ứng dụng sẽ tìm video YouTube bằng
-          YouTube Data API và đọc kết quả cho bạn nghe.
+          YouTube Data API, sau đó mở video trong player riêng để bạn có thể ra
+          lệnh phát, tạm dừng, phóng to, thu nhỏ và đổi tốc độ ngay lập tức.
         </p>
 
-        <label for="queryInput">Lệnh YouTube</label>
+        <label for="queryInput">Lệnh YouTube hoặc lệnh điều khiển</label>
         <div class="controls">
           <input
             id="queryInput"
@@ -23,8 +24,17 @@
             placeholder="Ví dụ: mở video nhạc lofi chill"
             autocomplete="off"
           />
-          <button id="searchButton" type="button">Tìm video</button>
+          <button id="searchButton" type="button">Tìm / mở video</button>
           <button id="listenButton" type="button">🎤 Nói lệnh</button>
+        </div>
+
+        <div class="quick-controls" aria-label="Điều khiển nhanh">
+          <button class="control-button" data-action="play" type="button">▶️ Phát</button>
+          <button class="control-button" data-action="pause" type="button">⏸️ Tạm dừng</button>
+          <button class="control-button" data-action="fullscreen" type="button">🖥️ Phóng to</button>
+          <button class="control-button" data-action="shrink" type="button">🗕 Thu nhỏ</button>
+          <button class="control-button" data-action="speed-1" type="button">1x</button>
+          <button class="control-button" data-action="speed-2" type="button">2x</button>
         </div>
 
         <p id="status" class="status" aria-live="polite">
@@ -35,7 +45,11 @@
           <h2>Kết quả gần nhất</h2>
           <p><strong>Tiêu đề:</strong> <span id="videoTitle"></span></p>
           <p><strong>Kênh:</strong> <span id="videoChannel"></span></p>
-          <p><strong>Link:</strong> <a id="videoLink" href="#" target="_blank" rel="noreferrer">Mở video</a></p>
+          <p>
+            <strong>Link:</strong>
+            <a id="videoLink" href="#" target="_blank" rel="noreferrer">Mở video</a>
+          </p>
+          <p><strong>Player:</strong> <span id="playerState">Chưa mở player</span></p>
         </div>
       </section>
     </main>
