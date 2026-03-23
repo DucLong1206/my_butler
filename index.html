@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Butler Voice YouTube</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="card">
+        <h1>My Butler Voice YouTube</h1>
+        <p class="intro">
+          Nhập lệnh hoặc bấm nút mic để nói. Ứng dụng sẽ tìm video YouTube bằng
+          YouTube Data API và đọc kết quả cho bạn nghe.
+        </p>
+
+        <label for="queryInput">Lệnh YouTube</label>
+        <div class="controls">
+          <input
+            id="queryInput"
+            type="text"
+            placeholder="Ví dụ: mở video nhạc lofi chill"
+            autocomplete="off"
+          />
+          <button id="searchButton" type="button">Tìm video</button>
+          <button id="listenButton" type="button">🎤 Nói lệnh</button>
+        </div>
+
+        <p id="status" class="status" aria-live="polite">
+          Sẵn sàng. Nhập hoặc nói lệnh để bắt đầu.
+        </p>
+
+        <div id="result" class="result" hidden>
+          <h2>Kết quả gần nhất</h2>
+          <p><strong>Tiêu đề:</strong> <span id="videoTitle"></span></p>
+          <p><strong>Kênh:</strong> <span id="videoChannel"></span></p>
+          <p><strong>Link:</strong> <a id="videoLink" href="#" target="_blank" rel="noreferrer">Mở video</a></p>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
